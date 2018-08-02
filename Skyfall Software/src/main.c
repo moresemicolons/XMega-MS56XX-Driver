@@ -12,7 +12,10 @@ int main (void)
 {
 	board_init();
 	sysclk_init();
-	UART_computer_init(&COMMS_USART, &PORTC);
+	UART_computer_init(&COMMS_USART, 
+						&PORTC, 
+						IOPORT_CREATE_PIN(PORTC, 3), 
+						IOPORT_CREATE_PIN(PORTC, 2));
 	
 	MS56XX_t pressure_sensor = define_new_MS56XX(MS5607, &SPIC, IOPORT_CREATE_PIN(PORTC, 4));
 	

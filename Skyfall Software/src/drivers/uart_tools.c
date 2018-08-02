@@ -9,7 +9,7 @@
 #include "config/conf_usart_serial.h"
 #include "drivers/uart_tools.h"
 
-void UART_computer_init(USART_t* comms_usart, PORT_t* comms_port)
+void UART_computer_init(USART_t* comms_usart, PORT_t* comms_port, ioport_pin_t tx_pin, ioport_pin_t rx_pin)
 /* This sets up the UART pins that are used by the XBee (if plugged into a one month board), and by the computer during debugging
 Call during startup.
 Based on Adam's code template for one month, but with RX pin configuration. */
@@ -20,10 +20,10 @@ Based on Adam's code template for one month, but with RX pin configuration. */
 		.paritytype = USART_SERIAL_PARITY,
 		.stopbits = USART_SERIAL_STOP_BIT
 	};
-	//FIXME: should take explicit pins instead of assuming a USARTX0 (USARTX1 has different pins)
-	comms_port->DIR |= 0b00001000; //TX pin out
-	comms_port->DIR &= 0b11111011; //RX pin in
-	comms_port->OUT |= 0b00001000;
+	
+	gpio_configure_pin(tx_pin, IOPORT_DIR_OUTPUT);
+	gpio_configure_pin(rx_pin, IOPORT_DIR_INPUT);
 	sysclk_enable_peripheral_clock(comms_usart); 
+	
 	stdio_serial_init(comms_usart, &options);
 }

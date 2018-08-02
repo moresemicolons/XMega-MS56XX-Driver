@@ -60,19 +60,26 @@ uint16_t read16(SPI_t* targetspi)
 
 uint32_t read24(SPI_t* targetspi)
 {
+	//Read in 24 bits, MSB first
 	uint32_t ret = ((uint32_t)spiread(targetspi)) << 16;
 	ret |= ((uint32_t)spiread(targetspi)) << 8;
 	ret |= (uint32_t)spiread(targetspi);
 	return ret;
 }
 
-MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin)
+MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin, OSR_Settings osr)
 {
 	MS56XX_t pressure_sensor;
 	pressure_sensor.model = model;
 	pressure_sensor.select_pin = select_pin;
 	pressure_sensor.spi = spi;
+	pressure_sensor.osr = osr;
 	return pressure_sensor;
+}
+
+MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin)
+{
+	define_new_MS56XX(model, spi, select_pin, OSR_4096); //Default to highest oversampling rate if not provided
 }
 
 void pressureSensorReset(MS56XX_t* sensor)
@@ -90,7 +97,6 @@ void calibratePressureSensor(MS56XX_t* sensor)
 	pressureSensorReset(sensor);
 	
 	//Get all the lovely little calibration constants
-	
 	spiselect(sensor->select_pin);
 	spiwrite(sensor->spi, 0b10100010); //Bits 1 - 3 are 001, for C1
 	sensor->SENSt1 = read16(sensor->spi);
@@ -137,13 +143,26 @@ void readMS56XX(MS56XX_t* sensor)
  {
 	uint32_t rawPressure = 0; //D1
 	uint32_t rawTemp = 0; //D2
+	
+	//Assume data is valid unless any of the cases checked for are met
+	sensor->data.valid = 1;
+	
+	uint16_t delay_time;
+	uint8_t D1_cmd, D2_cmd;
+	if (get_read_info(sensor->osr, &D1_cmd, &D2_cmd, &delay_time)) //Return flag of 1 = OSR not supported
+	{
+		//Mark data as invalid and exit function
+		sensor->data.valid = 0;
+		return;
+	}
+	//If get_read_info succeeded, D1_cmd, D2_cmd, and delay_time will now have the appropriate values for the selected OSR
 
 	//Ask for raw pressure, 4096 OSR
 	spiselect(sensor->select_pin);
-	spiwrite(sensor->spi, 0x48); //OSR = 4096
+	spiwrite(sensor->spi, D1_cmd);
 	spideselect(sensor->select_pin);
 
-	delay_ms(10);
+	delay_us(delay_time);
 
 	//Read off raw pressure (D1)
 	spiselect(sensor->select_pin);
@@ -154,10 +173,10 @@ void readMS56XX(MS56XX_t* sensor)
 
 	//Ask for raw temperature, 4096 OSR
 	spiselect(sensor->select_pin);
-	spiwrite(sensor->spi, 0x58); //OSR = 4096
+	spiwrite(sensor->spi, D2_cmd); //OSR = 4096
 	spideselect(sensor->select_pin);
 	
-	delay_ms(10);
+	delay_us(delay_time);
 
 	//Read off raw temperature (D2)
 	spiselect(sensor->select_pin);
@@ -220,6 +239,41 @@ void readMS56XX(MS56XX_t* sensor)
 	
 	sensor->data.pressure = (int32_t) PRESSURE; //In pascals
 	sensor->data.temperature = TEMP; //In hundredths of degree celsius
+ }
+ 
+ uint8_t get_read_info(OSR_Settings osr, uint8_t* D1_read_cmd, uint8_t D2_read_cmd, uint16_t* delay_time_us)
+ {
+	 switch (osr)
+	 {
+		 case OSR_4096:
+			*D1_read_cmd = 0x48;
+			*D2_read_cmd = 0x58;
+			*delay_time_us = 9040;
+			break;
+		case OSR_2048:
+			*D1_read_cmd = 0x46;
+			*D2_read_cmd = 0x56;
+			*delay_time_us = 4540;
+			break;
+		case OSR_1024:
+			*D1_read_cmd = 0x44;
+			*D2_read_cmd = 0x54;
+			*delay_time_us = 2280;
+			break;
+		case OSR_512:
+			*D1_read_cmd = 0x42;
+			*D2_read_cmd = 0x52;
+			*delay_time_us = 1170;
+			break;
+		case OSR_256:
+			*D1_read_cmd = 0x40;
+			*D2_read_cmd = 0x50;
+			*delay_time_us = 600;
+			break;
+		default:
+			return 1; //Error
+	 }
+	 return 0; //Success
  }
  
  

@@ -14,6 +14,14 @@ typedef enum {
 	MS5611 = 2,
 } SENSOR_TYPE;
 
+typedef enum {
+	OSR_4096,
+	OSR_2048,
+	OSR_1024,
+	OSR_512,
+	OSR_256,
+} OSR_Settings;
+
 typedef struct MS56XX_Data
 {
 	int32_t pressure; //Pascals
@@ -28,6 +36,7 @@ typedef struct MS56XX
 	SPI_t* spi;
 	SENSOR_TYPE model;
 	MS56XX_Data_t data;
+	OSR_Settings osr;
 	
 	//For internal use only
 	uint16_t SENSt1; //C1
@@ -41,6 +50,7 @@ typedef struct MS56XX
 void calibratePressureSensor(MS56XX_t* sensor);
 void readMS56XX(MS56XX_t* sensor);
 
+MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin, OSR_Settings osr);
 MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin);
 
 
