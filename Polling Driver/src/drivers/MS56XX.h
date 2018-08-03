@@ -11,7 +11,7 @@
 
 typedef enum {
 	MS5607 = 1,
-	MS5611 = 2,
+	MS5611 = 2
 } SENSOR_TYPE;
 
 typedef enum {
@@ -19,7 +19,7 @@ typedef enum {
 	OSR_2048,
 	OSR_1024,
 	OSR_512,
-	OSR_256,
+	OSR_256
 } OSR_Settings;
 
 typedef struct MS56XX_Data
@@ -51,7 +51,7 @@ void calibratePressureSensor(MS56XX_t* sensor);
 void readMS56XX(MS56XX_t* sensor);
 
 MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin, OSR_Settings osr);
-MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin);
+MS56XX_t define_new_MS56XX_default_OSR(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin);
 
 
 #endif /* MS5607_H_ */

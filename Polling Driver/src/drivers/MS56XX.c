@@ -45,6 +45,7 @@
 
 
 void pressureSensorReset(MS56XX_t* sensor);
+uint8_t get_read_info(OSR_Settings osr, uint8_t* D1_read_cmd, uint8_t* D2_read_cmd, uint16_t* delay_time_us);
 uint16_t read16(SPI_t* targetspi);
 uint32_t read24(SPI_t* targetspi);
 
@@ -77,9 +78,9 @@ MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pi
 	return pressure_sensor;
 }
 
-MS56XX_t define_new_MS56XX(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin)
+MS56XX_t define_new_MS56XX_default_OSR(SENSOR_TYPE model, SPI_t* spi, ioport_pin_t select_pin)
 {
-	define_new_MS56XX(model, spi, select_pin, OSR_4096); //Default to highest oversampling rate if not provided
+	return define_new_MS56XX(model, spi, select_pin, OSR_4096); //Default to highest oversampling rate if not provided
 }
 
 void pressureSensorReset(MS56XX_t* sensor)
@@ -241,7 +242,7 @@ void readMS56XX(MS56XX_t* sensor)
 	sensor->data.temperature = TEMP; //In hundredths of degree celsius
  }
  
- uint8_t get_read_info(OSR_Settings osr, uint8_t* D1_read_cmd, uint8_t D2_read_cmd, uint16_t* delay_time_us)
+ uint8_t get_read_info(OSR_Settings osr, uint8_t* D1_read_cmd, uint8_t* D2_read_cmd, uint16_t* delay_time_us)
  {
 	 switch (osr)
 	 {

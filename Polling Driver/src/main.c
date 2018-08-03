@@ -17,7 +17,7 @@ int main (void)
 						IOPORT_CREATE_PIN(PORTC, 3), 
 						IOPORT_CREATE_PIN(PORTC, 2));
 	
-	MS56XX_t pressure_sensor = define_new_MS56XX(MS5607, &SPIC, IOPORT_CREATE_PIN(PORTC, 4));
+	MS56XX_t pressure_sensor = define_new_MS56XX_default_OSR(MS5607, &SPIC, IOPORT_CREATE_PIN(PORTC, 4));
 	
 	initializespi(&SPIC, &PORTC);
 	enable_select_pin(pressure_sensor.select_pin);
@@ -30,6 +30,8 @@ int main (void)
 	
 	while (1)
 	{
-			
+		readMS56XX(&pressure_sensor);
+		printf("Pressure is %" PRIi32 ", temperature is %" PRIi32 "\n", pressure_sensor.data.pressure, pressure_sensor.data.temperature);
+		delay_ms(1000);
 	}	
 }
