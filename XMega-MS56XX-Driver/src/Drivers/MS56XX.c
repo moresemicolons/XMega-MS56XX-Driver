@@ -129,14 +129,14 @@ void calibratePressureSensor(MS56XX_t* sensor)
 	sensor->TEMPSENS = read16(sensor->spi);
 	spideselect(sensor->select_pin);
 
-	printf("C1\tC2\tC3\tC4\tC5\tC6\t\n");
+	/*printf("C1\tC2\tC3\tC4\tC5\tC6\t\n");
 	printf("%u\t%u\t%u\t%u\t%u\t%u\n", 
 			sensor->SENSt1, 
 			sensor->OFFt1, 
 			sensor->TCS, 
 			sensor->TCO, 
 			sensor->Tref, 
-			sensor->TEMPSENS);
+			sensor->TEMPSENS);*/
 }
 
 
@@ -157,22 +157,6 @@ void readMS56XX(MS56XX_t* sensor)
 		return;
 	}
 	//If get_read_info succeeded, D1_cmd, D2_cmd, and delay_time will now have the appropriate values for the selected OSR
-	printf("D1_cmd: %u, D2_cmd: %u, delay: %u\n", D1_cmd, D2_cmd, delay_time);
-
-
-// 	Ask for raw pressure, 4096 OSR
-// 		spiselect(sensor->select_pin);
-// 		spiwrite(sensor->spi, D1_cmd);
-// 		spideselect(sensor->select_pin);
-// 	
-// 		delay_us(delay_time);
-// 	
-// 		//Read off raw pressure (D1)
-// 		spiselect(sensor->select_pin);
-// 		spiwrite(sensor->spi, 0x0);
-// 		rawPressure = read24(sensor->spi);
-// 		spideselect(sensor->select_pin);
-	
 
 	//Ask for raw pressure, 4096 OSR
 	spiselect(sensor->select_pin);
@@ -187,7 +171,6 @@ void readMS56XX(MS56XX_t* sensor)
 	rawPressure = read24(sensor->spi);
 	spideselect(sensor->select_pin);
 	
-
 	//Ask for raw temperature, 4096 OSR
 	spiselect(sensor->select_pin);
 	spiwrite(sensor->spi, D2_cmd); //OSR = 4096
@@ -201,10 +184,8 @@ void readMS56XX(MS56XX_t* sensor)
 	rawTemp = read24(sensor->spi);
 	spideselect(sensor->select_pin);
 	
-	printf("Raw D1 & D2: %" PRIi32 ", %" PRIi32 "\n", rawPressure, rawTemp);
-	
-	int32_t dT = rawTemp - (int32_t)(((int64_t)sensor->Tref) * ((int64_t)256));
-	int32_t TEMP = (int32_t)(((int32_t)2000) + ((int32_t)(((int64_t)dT) * ((int64_t)sensor->TEMPSENS) / ((int64_t)8388608))));
+	int32_t dT = rawTemp - (int32_t)(((int64_t)sensor->Tref) << 8);
+	int32_t TEMP = (int32_t)(((int32_t)2000) + ((int32_t)(((int64_t)dT) * ((int64_t)sensor->TEMPSENS) >> 23)));
 	
 	int32_t T2 = 0;
 	int64_t OFF2 = 0;
@@ -213,7 +194,7 @@ void readMS56XX(MS56XX_t* sensor)
 	if (TEMP < 2000)
 	{
 		T2 = ((int64_t)dT) * ((int64_t)dT) / ((int64_t)2147483648);
-		OFF2 = ((int64_t)61) * ((int64_t)(TEMP - 2000)) * ((int64_t)(TEMP - 2000)) / ((int64_t)16);
+		OFF2 = ((int64_t)61) * ((int64_t)(TEMP - 2000)) * ((int64_t)(TEMP - 2000)) >> 4;
 		SENS2 = ((int64_t)2) * ((int64_t)(TEMP - 2000)) * ((int64_t)(TEMP - 2000));
 	}
 	else
@@ -228,20 +209,35 @@ void readMS56XX(MS56XX_t* sensor)
 		OFF2 += ((int64_t)15) * (((int64_t) TEMP) + ((int64_t) 1500))^2; 
 		SENS2 += ((int64_t) 8) * (((int64_t) TEMP) + ((int64_t) 1500) )^2;
 	}
-	int64_t OFF = ((int64_t)sensor->OFFt1) * ((int64_t)131072) +
-	(((int64_t)sensor->TCO) * ((int64_t)dT)) / ((int64_t)64);
+	uint8_t offshift1, offshift2, sens_shift1, sens_shift2;
+	switch (sensor->model)
+	{
+		case MS5607:
+			offshift1 = 17;
+			offshift2 = 6;
+			sens_shift1 = 16;
+			sens_shift2 = 7;
+			break;
+		case MS5611:
+			offshift1 = 17;
+			offshift2 = 6;
+			sens_shift1 = 16;
+			sens_shift2 = 7;
+			break;
+		default:
+			sensor->data.valid = 0;
+			return;
+	}
+	int64_t OFF = (((int64_t)sensor->OFFt1) << offshift1) +
+	((((int64_t)sensor->TCO) * ((int64_t)dT)) >> offshift2);
 	
-	int64_t SENS = ((int64_t)sensor->SENSt1) * ((int64_t)65536) +
-		(
-			((int64_t)sensor->TCS) * ((int64_t)dT)
-		) / ((int64_t)128);
+	int64_t SENS = (((int64_t)sensor->SENSt1) << sens_shift1) + ((((int64_t)sensor->TCS) * ((int64_t)dT)) >> sens_shift2);
 		
 	TEMP -= T2;
 	OFF -= OFF2;
 	SENS -= SENS2;
 	
-	int64_t PRESSURE = (((int64_t)rawPressure) * SENS / ((int64_t)2097152) - OFF) 
-			/ ((int64_t)32768);
+	int64_t PRESSURE = ((((int64_t)rawPressure) * SENS >> 21) - OFF) >> 15;
 			
 	/*printf("C1\tC2\tC3\tC4\tC5\tC6\t\n");
 	printf("%u\t%u\t%u\t%u\t%u\t%u\n",
