@@ -7,6 +7,7 @@
 #define COMMS_USART				USARTC0
 #define USART_TX_PIN			IOPORT_CREATE_PIN(PORTC, 3)
 #define USART_RX_PIN			IOPORT_CREATE_PIN(PORTC, 2)
+#define PRESSURE_SELECT_PIN		IOPORT_CREATE_PIN(PORTC, 4)
 
 
 //Example usage of MS5611/07 driver for One Monthers
@@ -20,7 +21,7 @@ int main (void)
 	PORTE.DIR = 0xff;
 	PORTE.OUT = 0x0f;
 	
-	MS56XX_t pressure_sensor = define_new_MS56XX_default_OSR(MS5607, &SPIC, IOPORT_CREATE_PIN(PORTC, 4));
+	MS56XX_t pressure_sensor = define_new_MS56XX_default_OSR(MS5607, &SPIC, PRESSURE_SELECT_PIN);
 	
 	initializespi(&SPIC, &PORTC);
 	enable_select_pin(pressure_sensor.select_pin);
